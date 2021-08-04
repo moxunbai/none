@@ -1,8 +1,30 @@
 
 class OperEvent{
 	
+	curSteps=0;
+	steps=[{}];
+	isActive=false;
 	constructor(){
-       console.log("OperEvent")
+		 if (new.target === OperEvent) {
+		 	throw new Error("OperEvent is abstract")
+		 }
+       
+	}
+ 
+
+	start(){
+          
+	}
+
+	onPointerEffect(){
+
+	}
+	onPointerMove(){
+		
+	}
+
+	close(){
+
 	}
 }
 

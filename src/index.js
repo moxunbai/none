@@ -3,6 +3,8 @@ var THREE = require("three")
 import { WEBGL } from 'three/examples/jsm/WebGL.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { ViewportController } from './controls/ViewportController';
+
+var operStack=[];
  
 if ( WEBGL.isWebGL2Available() === false ) {
 
