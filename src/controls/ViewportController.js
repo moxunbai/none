@@ -28,9 +28,14 @@ class ViewportController {
 
     pointerCache = [];
     pointerUser = "hand";
+    taegetDom;
+    _camera;
+    _scene;
 
-    constructor(dom, camera, scene) {
-
+    constructor(dom, scene, camera) {
+        this.taegetDom=dom;
+        this._camera=camera;
+        this._scene = scene;
         var that = this;
         document.addEventListener("keydown", function(event) {
             // console.log("keydown222", event.code)
@@ -74,8 +79,9 @@ class ViewportController {
 
         })
         dom.addEventListener('pointermove', function(evt) {
-              if(this.actEvent){
-                  this.actEvent.onPointerMove(evt);
+           
+              if(that.actEvent){
+                  that.actEvent.onPointerMove(evt);
               }
         })
 
@@ -90,9 +96,13 @@ class ViewportController {
 
     checkEventLify(ioType, pressType, val, event) {
         if (this.actEvent != null) {
-            if (this.actEvent.curSteps > 0 && this.actEvent.curSteps < this.actEvent.steps.length) {
-
+            if (this.actEvent.curSteps > -1 && this.actEvent.curSteps < this.actEvent.steps.length) {
+              
+                 this.actEvent.onPointerEffect(ioType, pressType, val, event)     
             } else {
+                console.log("结束"+pressType, val )
+                this.actEvent.close();
+                this.actEvent=null;
                 //结束
             }
         } else {
@@ -109,14 +119,15 @@ class ViewportController {
                      _key+="_"+this.curPointer[k]
                  }
              }*/
-            var sckSetting = findSckSetting([...this.curKeyCodes], Object.keys(this.curPointer));
-            console.log(this.curKeyCodes)
-            console.log(this.curPointer)
-            console.log(sckSetting)
+
+            var sckSetting = findSckSetting([...this.curKeyCodes], Object.keys(this.curPointer),this._scene,this._camera);
+           
+            // console.log(sckSetting)
             if (sckSetting) {
-                console.log("sckSetting", sckSetting)
+                // console.log("sckSetting", sckSetting)
                 this.actEvent = sckSetting[Symbol.for("event")];
                 if (this.actEvent) {
+                    console.log("checkEventLify sart" )
                     this.actEvent.start();
                 }
             }
