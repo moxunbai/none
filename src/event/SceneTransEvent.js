@@ -1,13 +1,13 @@
-
 var THREE = require("three")
 import { OperEvent } from "./operevent"
 import { IO_TYPE, PRESS_TYPE } from "../util/const";
 
-const EPS = 0.000001; 
+const EPS = 0.000001;
 class SceneTransEvent extends OperEvent {
 
     _scene;
     _camera;
+    _dom;
     dollyStart = {};
     dollyEnd = {};
     dollyDelta = {};
@@ -16,6 +16,10 @@ class SceneTransEvent extends OperEvent {
     minZoom = 0;
     zoomSpeed = 1.0; // Set to false to disable rotating
     target = new THREE.Vector3();
+    rotateStart = new THREE.Vector2();
+    rotateEnd = new THREE.Vector2();
+    rotateDelta = new THREE.Vector2();
+    rotateSpeed = 1.0;
 
     spherical = new THREE.Spherical();
     sphericalDelta = new THREE.Spherical();
@@ -27,13 +31,17 @@ class SceneTransEvent extends OperEvent {
     minDistance = 0;
     maxDistance = Infinity; // How far you can zoom in and out ( OrthographicCamera only )
 
+    minPolarAngle = 0; // radians
+
+    maxPolarAngle = Math.PI; // radians
+
     enableDamping = false;
     dampingFactor = 0.05; // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
     // Set to false to disable zooming
 
- zoomChanged = false;
+    zoomChanged = false;
 
-    constructor(option, scene, camera) {
+    constructor(option, scene, camera, dom) {
         super();
         this.steps = [{
             ioType: IO_TYPE.MOUSE,
@@ -44,51 +52,81 @@ class SceneTransEvent extends OperEvent {
         }]
         this._scene = scene;
         this._camera = camera;
+        this._dom = dom;
     }
 
-    start(keys, pointers) {
+    start(keys, pointers, event) {
         this.isActive = true;
+        this.rotateStart.set(event.clientX, event.clientY);
+        if(pointers){
+            var opts = Object.values(pointers)
+            this.onIOChange.apply(this,opts&&opts[0])
+        }
     }
 
 
 
-    onPointerEffect(ioType, pressType, val, event) {
+    onIOChange(ioType, pressType, val, event) {
 
+        // if(ioType==IO_TYPE.KEYBOARD){
+        //     return
+        // }
 
+         var a = ioType==IO_TYPE.KEYBOARD?"键盘":"鼠标";
+         a+="=="+ioType
+         var aa=pressType==PRESS_TYPE.DOWN?"Down":"up"
         let _step = this.steps[this.curSteps];
+       var qq= matchStep(_step, this.curSteps,ioType, pressType, val, event)
+console.log(this.curSteps+"  "+ a+aa+"  "+ val+"onPointerEffect isact:"+this.isActive+"  qq "+qq  ,_step)
 
         if (this.isActive && _step) {
-        	console.log("onPointerEffect act",112)
-            if ((!_step.ioType || _step.ioType == ioType) && (!_step.pressType || _step.pressType == pressType) && (!_step.val || _step.val == val) && this.curSteps < this.steps.length - 1) {
+            // console.log("onPointerEffect act", 112)
+            if (matchStep(_step, this.curSteps,ioType, pressType, val, event)) {
+                 console.log("onPointerEffect matchStep", pressType)
                 if (this.curSteps == 0) {
                     this.dollyStart.x = event.clientX
                     this.dollyStart.y = event.clientY
                 }
                 this.curSteps++;
-                return { done: false }
+                if (this.curSteps < this.steps.length) {
+                    return { done: false }
+                } else {
+                    console.log("onPointerEffect close", 1)
+                    this.close()
+                }
             }
+
         }
         return { done: true }
     }
-    onPointerMove( event) {
-    	console.log("onPointerMove",11)
+    onPointerMove(event) {
+        // console.log("onPointerMove", 11)
         if (this.isActive) {
-        	console.log("onPointerMove",222)
-            this.dollyEnd.x = event.clientX
-            this.dollyEnd.y = event.clientY
-            this.dollyDelta.x = this.dollyEnd.x - this.dollyStart.x;
-            this.dollyDelta.y = this.dollyEnd.y - this.dollyStart.y;
+            console.log("onPointerMove", 222)
 
-            if (this.dollyDelta.y > 0) {
-                this.dollyOut(getZoomScale(this.zoomSpeed), this._camera)
-            } else if (this.dollyDelta.y < 0) {
-                this.dollyIn(getZoomScale(this.zoomSpeed), this._camera)
-            }
 
-            this.dollyStart.x = this.dollyEnd.x
-            this.dollyStart.y = this.dollyEnd.y
-            this.update()
+            this.rotateEnd.set(event.clientX, event.clientY);
+            this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart).multiplyScalar(this.rotateSpeed);
+            const element = this._dom;
+            this.rotateLeft(2 * Math.PI * this.rotateDelta.x / element.clientHeight); // yes, height
+
+            this.rotateUp(2 * Math.PI * this.rotateDelta.y / element.clientHeight);
+            this.rotateStart.copy(this.rotateEnd);
+            this.update();
         }
+    }
+
+
+    rotateLeft(angle) {
+
+        this.sphericalDelta.theta -= angle;
+
+    }
+
+    rotateUp(angle) {
+
+        this.sphericalDelta.phi -= angle;
+
     }
 
     update() {
@@ -116,6 +154,7 @@ class SceneTransEvent extends OperEvent {
 
             }
 
+            // console.log(that.sphericalDelta)
             if (that.enableDamping) {
 
                 that.spherical.theta += that.sphericalDelta.theta * that.dampingFactor;
@@ -169,37 +208,37 @@ class SceneTransEvent extends OperEvent {
             }
 
             offset.setFromSpherical(that.spherical); // rotate offset back to "camera-up-vector-is-up" space
-
-            offset.applyQuaternion( quatInverse);
+            // console.log(offset)
+            offset.applyQuaternion(quatInverse);
             position.copy(that.target).add(offset);
             that._camera.lookAt(that.target);
 
-            if (that.enableDamping === true) {
+            /* if (that.enableDamping === true) {
 
-                that.sphericalDelta.theta *= 1 - that.dampingFactor;
-                that.sphericalDelta.phi *= 1 - that.dampingFactor;
-                that.panOffset.multiplyScalar(1 - that.dampingFactor);
+                 that.sphericalDelta.theta *= 1 - that.dampingFactor;
+                 that.sphericalDelta.phi *= 1 - that.dampingFactor;
+                 that.panOffset.multiplyScalar(1 - that.dampingFactor);
 
-            } else {
+             } else {
 
-                that.sphericalDelta.set(0, 0, 0);
-                that.panOffset.set(0, 0, 0);
+                 that.sphericalDelta.set(0, 0, 0);
+                 that.panOffset.set(0, 0, 0);
 
-            }
+             }
 
-            that.scale = 1; // update condition is:
-            // min(camera displacement, camera rotation in radians)^2 > EPS
-            // using small-angle approximation cos(x/2) = 1 - x^2 / 8
+             that.scale = 1; // update condition is:
+             // min(camera displacement, camera rotation in radians)^2 > EPS
+             // using small-angle approximation cos(x/2) = 1 - x^2 / 8
 
-            if (that.zoomChanged || lastPosition.distanceToSquared(that._camera.position) > EPS || 8 * (1 - lastQuaternion.dot(that._camera.quaternion)) > EPS) {
+             if (that.zoomChanged || lastPosition.distanceToSquared(that._camera.position) > EPS || 8 * (1 - lastQuaternion.dot(that._camera.quaternion)) > EPS) {
 
-                that.dispatchEvent(_changeEvent);
-                lastPosition.copy(that._camera.position);
-                lastQuaternion.copy(that._camera.quaternion);
-                that.zoomChanged = false;
-                return true;
+                 that.dispatchEvent(_changeEvent);
+                 lastPosition.copy(that._camera.position);
+                 lastQuaternion.copy(that._camera.quaternion);
+                 that.zoomChanged = false;
+                 return true;
 
-            }
+             }*/
 
             return false;
 
@@ -258,6 +297,16 @@ function getZoomScale(zoomSpeed) {
 
     return Math.pow(0.95, zoomSpeed);
 
+}
+
+function matchStep(step, idx,ioType, pressType, val, event) {
+    // console.log("in matchStep step.ioType == ioType ", step.ioType == ioType)   
+    // console.log( "step.pressType == pressType ", step.pressType == pressType) 
+    // console.log( "step.val == val ",step.val == val)
+    if ((!step.ioType || step.ioType == ioType) && (!step.pressType || step.pressType == pressType) && (!step.val || step.val == val)) {
+        return true
+    }
+    return false;
 }
 
 export {
