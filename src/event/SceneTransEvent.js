@@ -8,38 +8,69 @@ class SceneTransEvent extends OperEvent {
     _scene;
     _camera;
     _dom;
-    dollyStart = {};
-    dollyEnd = {};
-    dollyDelta = {};
-    scale = 1;
-    maxZoom = Infinity;
-    minZoom = 0;
-    zoomSpeed = 1.0; // Set to false to disable rotating
-    target = new THREE.Vector3();
-    rotateStart = new THREE.Vector2();
-    rotateEnd = new THREE.Vector2();
-    rotateDelta = new THREE.Vector2();
+    // dollyStart = {};
+    // dollyEnd = {};
+    // dollyDelta = {};
+    // scale = 1;
+    // maxZoom = Infinity;
+    // minZoom = 0;
+    // zoomSpeed = 1.0; // Set to false to disable rotating
+    // target = new THREE.Vector3();
+    // rotateStart = new THREE.Vector2();
+    // rotateEnd = new THREE.Vector2();
+    // rotateDelta = new THREE.Vector2();
     rotateSpeed = 1.0;
 
-    spherical = new THREE.Spherical();
-    sphericalDelta = new THREE.Spherical();
-    panOffset = new THREE.Vector3();
+    // spherical = new THREE.Spherical();
+    // sphericalDelta = new THREE.Spherical();
+    // panOffset = new THREE.Vector3();
 
-    minAzimuthAngle = -Infinity; // radians
-    maxAzimuthAngle = Infinity; // radians
+    // minAzimuthAngle = -Infinity; // radians
+    // maxAzimuthAngle = Infinity; // radians
 
-    minDistance = 0;
-    maxDistance = Infinity; // How far you can zoom in and out ( OrthographicCamera only )
+    // minDistance = 200;
+    // maxDistance = 500; // How far you can zoom in and out ( OrthographicCamera only )
 
-    minPolarAngle = 0; // radians
+    // minPolarAngle = 0; // radians
 
-    maxPolarAngle = Math.PI; // radians
+    // maxPolarAngle = Math.PI; // radians
 
-    enableDamping = false;
-    dampingFactor = 0.05; // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
-    // Set to false to disable zooming
+    // enableDamping = false;
+    // dampingFactor = 0.05; // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
+    // // Set to false to disable zooming
 
-    zoomChanged = false;
+    // zoomChanged = false;
+
+
+    target = new THREE.Vector3();
+    EPS = 0.000001;
+    lastPosition = new THREE.Vector3();
+    lastZoom = 1;
+    // _state = STATE.NONE;
+    // _keyState = STATE.NONE;
+    _touchZoomDistanceStart = 0;
+    _touchZoomDistanceEnd = 0;
+    _lastAngle = 0;
+
+    _eye = new THREE.Vector3();
+    _movePrev = new THREE.Vector2();
+    _moveCurr = new THREE.Vector2();
+    _lastAxis = new THREE.Vector3();
+    _zoomStart = new THREE.Vector2();
+    _zoomEnd = new THREE.Vector2();
+    _panStart = new THREE.Vector2();
+    _panEnd = new THREE.Vector2();
+    _pointers = [];
+    _pointerPositions = {}; // for reset
+
+    rotateCamera;
+    handleResize;
+    screen = {
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0
+    };
 
     constructor(option, scene, camera, dom) {
         super();
@@ -53,14 +84,85 @@ class SceneTransEvent extends OperEvent {
         this._scene = scene;
         this._camera = camera;
         this._dom = dom;
+        var that = this;
+        this.rotateCamera = function() {
+            const axis = new THREE.Vector3(),
+                quaternion = new THREE.Quaternion(),
+                eyeDirection = new THREE.Vector3(),
+                objectUpDirection = new THREE.Vector3(),
+                objectSidewaysDirection = new THREE.Vector3(),
+                moveDirection = new THREE.Vector3();
+
+            return function rotateCamera() {
+
+                moveDirection.set(that._moveCurr.x - that._movePrev.x, that._moveCurr.y - that._movePrev.y, 0);
+                let angle = moveDirection.length();
+
+                if (angle) {
+
+                    that._eye.copy(that._camera.position).sub(that.target);
+
+                    eyeDirection.copy(that._eye).normalize();
+                    objectUpDirection.copy(that._camera.up).normalize();
+                    objectSidewaysDirection.crossVectors(objectUpDirection, eyeDirection).normalize();
+                    objectUpDirection.setLength(that._moveCurr.y - that._movePrev.y);
+                    objectSidewaysDirection.setLength(that._moveCurr.x - that._movePrev.x);
+                    moveDirection.copy(objectUpDirection.add(objectSidewaysDirection));
+                    axis.crossVectors(moveDirection, that._eye).normalize();
+                    angle *= that.rotateSpeed;
+                    quaternion.setFromAxisAngle(axis, angle);
+
+                    that._eye.applyQuaternion(quaternion);
+
+                    that._camera.up.applyQuaternion(quaternion);
+
+                    that._lastAxis.copy(axis);
+
+                    that._lastAngle = angle;
+
+                } else if (!that.staticMoving && that._lastAngle) {
+
+                    that._lastAngle *= Math.sqrt(1.0 - that.dynamicDampingFactor);
+
+                    that._eye.copy(that._camera.position).sub(that.target);
+
+                    quaternion.setFromAxisAngle(that._lastAxis, that._lastAngle);
+
+                    that._eye.applyQuaternion(quaternion);
+
+                    that._camera.up.applyQuaternion(quaternion);
+
+                }
+
+                that._movePrev.copy(that._moveCurr);
+
+            };
+        }()
+
+        this.handleResize = function() {
+
+            const box = dom.getBoundingClientRect(); // adjustments come from similar code in the jquery offset() function
+
+            const d = dom.ownerDocument.documentElement;
+            that.screen.left = box.left + window.pageXOffset - d.clientLeft;
+            that.screen.top = box.top + window.pageYOffset - d.clientTop;
+            that.screen.width = box.width;
+            that.screen.height = box.height;
+
+        };
+
+        this.handleResize()
     }
 
     start(keys, pointers, event) {
         this.isActive = true;
-        this.rotateStart.set(event.clientX, event.clientY);
-        if(pointers){
+        // this.rotateStart.set(event.clientX, event.clientY);
+        this._moveCurr.copy(getMouseOnCircle(event.pageX, event.pageY, this.screen));
+
+        this._movePrev.copy(this._moveCurr);
+        if (pointers) {
             var opts = Object.values(pointers)
-            this.onIOChange.apply(this,opts&&opts[0])
+            this.onIOChange.apply(this, opts && opts[0])
         }
     }
 
@@ -72,21 +174,21 @@ class SceneTransEvent extends OperEvent {
         //     return
         // }
 
-         var a = ioType==IO_TYPE.KEYBOARD?"键盘":"鼠标";
-         a+="=="+ioType
-         var aa=pressType==PRESS_TYPE.DOWN?"Down":"up"
+        // var a = ioType == IO_TYPE.KEYBOARD ? "键盘" : "鼠标";
+        // a += "==" + ioType
+        // var aa = pressType == PRESS_TYPE.DOWN ? "Down" : "up"
         let _step = this.steps[this.curSteps];
-       var qq= matchStep(_step, this.curSteps,ioType, pressType, val, event)
-console.log(this.curSteps+"  "+ a+aa+"  "+ val+"onPointerEffect isact:"+this.isActive+"  qq "+qq  ,_step)
+        // var qq = matchStep(_step, this.curSteps, ioType, pressType, val, event)
+        // console.log(this.curSteps + "  " + a + aa + "  " + val + "onPointerEffect isact:" + this.isActive + "  qq " + qq, _step)
 
         if (this.isActive && _step) {
             // console.log("onPointerEffect act", 112)
-            if (matchStep(_step, this.curSteps,ioType, pressType, val, event)) {
-                 console.log("onPointerEffect matchStep", pressType)
-                if (this.curSteps == 0) {
-                    this.dollyStart.x = event.clientX
-                    this.dollyStart.y = event.clientY
-                }
+            if (matchStep(_step, this.curSteps, ioType, pressType, val, event)) {
+                console.log("onPointerEffect matchStep", pressType)
+                // if (this.curSteps == 0) {
+                //     this.dollyStart.x = event.clientX
+                //     this.dollyStart.y = event.clientY
+                // }
                 this.curSteps++;
                 if (this.curSteps < this.steps.length) {
                     return { done: false }
@@ -103,15 +205,10 @@ console.log(this.curSteps+"  "+ a+aa+"  "+ val+"onPointerEffect isact:"+this.isA
         // console.log("onPointerMove", 11)
         if (this.isActive) {
             console.log("onPointerMove", 222)
+ 
+            this._movePrev.copy(this._moveCurr);
 
-
-            this.rotateEnd.set(event.clientX, event.clientY);
-            this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart).multiplyScalar(this.rotateSpeed);
-            const element = this._dom;
-            this.rotateLeft(2 * Math.PI * this.rotateDelta.x / element.clientHeight); // yes, height
-
-            this.rotateUp(2 * Math.PI * this.rotateDelta.y / element.clientHeight);
-            this.rotateStart.copy(this.rotateEnd);
+            this._moveCurr.copy(getMouseOnCircle(event.clientX, event.clientY, this.screen));
             this.update();
         }
     }
@@ -129,120 +226,47 @@ console.log(this.curSteps+"  "+ a+aa+"  "+ val+"onPointerEffect isact:"+this.isA
 
     }
 
+
+
     update() {
 
-        const offset = new THREE.Vector3(); // so camera.up is the orbit axis
+        
 
-        const quat = new THREE.Quaternion().setFromUnitVectors(this._camera.up, new THREE.Vector3(0, 1, 0));
-        const quatInverse = quat.clone().invert();
-        const lastPosition = new THREE.Vector3();
-        const lastQuaternion = new THREE.Quaternion();
-        const twoPI = 2 * Math.PI;
         var that = this;
-        return function update() {
+        this.rotateCamera();
+        that._camera.position.addVectors(that.target, that._eye);
 
-            const position = that._camera.position;
-            offset.copy(position).sub(that.target); // rotate offset to "y-axis-is-up" space
+        if (that._camera.isPerspectiveCamera) {
 
-            offset.applyQuaternion(quat); // angle from z-axis around y-axis
-
-            that.spherical.setFromVector3(offset);
-
-            if (that.autoRotate && that.state === STATE.NONE) {
-
-                rotateLeft(getAutoRotationAngle());
-
-            }
-
-            // console.log(that.sphericalDelta)
-            if (that.enableDamping) {
-
-                that.spherical.theta += that.sphericalDelta.theta * that.dampingFactor;
-                that.spherical.phi += that.sphericalDelta.phi * that.dampingFactor;
-
-            } else {
-
-                that.spherical.theta += that.sphericalDelta.theta;
-                that.spherical.phi += that.sphericalDelta.phi;
-
-            } // restrict theta to be between desired limits
-
-
-            let min = that.minAzimuthAngle;
-            let max = that.maxAzimuthAngle;
-
-            if (isFinite(min) && isFinite(max)) {
-
-                if (min < -Math.PI) min += twoPI;
-                else if (min > Math.PI) min -= twoPI;
-                if (max < -Math.PI) max += twoPI;
-                else if (max > Math.PI) max -= twoPI;
-
-                if (min <= max) {
-
-                    that.spherical.theta = Math.max(min, Math.min(max, that.spherical.theta));
-
-                } else {
-
-                    that.spherical.theta = that.spherical.theta > (min + max) / 2 ? Math.max(min, that.spherical.theta) : Math.min(max, that.spherical.theta);
-
-                }
-
-            } // restrict phi to be between desired limits
-
-
-            that.spherical.phi = Math.max(that.minPolarAngle, Math.min(that.maxPolarAngle, that.spherical.phi));
-            that.spherical.makeSafe();
-            that.spherical.radius *= that.scale; // restrict radius to be between desired limits
-
-            that.spherical.radius = Math.max(that.minDistance, Math.min(that.maxDistance, that.spherical.radius)); // move target to panned location
-
-            if (that.enableDamping === true) {
-
-                that.target.addScaledVector(that.panOffset, that.dampingFactor);
-
-            } else {
-
-                that.target.add(that.panOffset);
-
-            }
-
-            offset.setFromSpherical(that.spherical); // rotate offset back to "camera-up-vector-is-up" space
-            // console.log(offset)
-            offset.applyQuaternion(quatInverse);
-            position.copy(that.target).add(offset);
+            // that.checkDistances();
             that._camera.lookAt(that.target);
 
-            /* if (that.enableDamping === true) {
+            if (that.lastPosition.distanceToSquared(that._camera.position) > EPS) {
 
-                 that.sphericalDelta.theta *= 1 - that.dampingFactor;
-                 that.sphericalDelta.phi *= 1 - that.dampingFactor;
-                 that.panOffset.multiplyScalar(1 - that.dampingFactor);
+                // that.dispatchEvent(_changeEvent);
+                that.lastPosition.copy(that._camera.position);
 
-             } else {
+            }
 
-                 that.sphericalDelta.set(0, 0, 0);
-                 that.panOffset.set(0, 0, 0);
+        } else if (that._camera.isOrthographicCamera) {
 
-             }
+            that._camera.lookAt(that.target);
 
-             that.scale = 1; // update condition is:
-             // min(camera displacement, camera rotation in radians)^2 > EPS
-             // using small-angle approximation cos(x/2) = 1 - x^2 / 8
+            if (that.lastPosition.distanceToSquared(that._camera.position) > EPS || lastZoom !== that._camera.zoom) {
 
-             if (that.zoomChanged || lastPosition.distanceToSquared(that._camera.position) > EPS || 8 * (1 - lastQuaternion.dot(that._camera.quaternion)) > EPS) {
+                // that.dispatchEvent(_changeEvent);
+                that.lastPosition.copy(that._camera.position);
+                lastZoom = that._camera.zoom;
 
-                 that.dispatchEvent(_changeEvent);
-                 lastPosition.copy(that._camera.position);
-                 lastQuaternion.copy(that._camera.quaternion);
-                 that.zoomChanged = false;
-                 return true;
+            }
 
-             }*/
+        } else {
 
-            return false;
+            console.warn('THREE.TrackballControls: Unsupported camera type');
 
-        }();
+        }
+
+        
     }
 
     close() {
@@ -251,59 +275,28 @@ console.log(this.curSteps+"  "+ a+aa+"  "+ val+"onPointerEffect isact:"+this.isA
     }
 
 
-    dollyOut(dollyScale, camera) {
-
-        if (camera.isPerspectiveCamera) {
-
-            this.scale /= dollyScale;
-
-        } else if (camera.isOrthographicCamera) {
-
-            camera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, camera.zoom * dollyScale));
-            camera.updateProjectionMatrix();
-            this.zoomChanged = true;
-
-        } else {
-
-            console.warn('WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.');
-            this.enableZoom = false;
-
-        }
-
-    }
-    dollyIn(dollyScale, camera) {
-
-        if (camera.isPerspectiveCamera) {
-
-            this.scale *= dollyScale;
-
-        } else if (camera.isOrthographicCamera) {
-
-            camera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, camera.zoom / dollyScale));
-            camera.updateProjectionMatrix();
-            this.zoomChanged = true;
-
-        } else {
-
-            console.warn('WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.');
-            this.enableZoom = false;
-
-        }
-
-    }
-}
-
-function getZoomScale(zoomSpeed) {
-
-    return Math.pow(0.95, zoomSpeed);
 
 }
 
-function matchStep(step, idx,ioType, pressType, val, event) {
+const getMouseOnCircle = function() {
+
+    const vector = new THREE.Vector2();
+    return function getMouseOnCircle(pageX, pageY, screen) {
+
+        vector.set((pageX - screen.width * 0.5 - screen.left) / (screen.width * 0.5), (screen.height + 2 * (screen.top - pageY)) / screen.width // screen.width intentional
+        );
+        return vector;
+
+    };
+
+}();
+ 
+
+function matchStep(step, idx, ioType, pressType, val, event) {
     // console.log("in matchStep step.ioType == ioType ", step.ioType == ioType)   
     // console.log( "step.pressType == pressType ", step.pressType == pressType) 
     // console.log( "step.val == val ",step.val == val)
-    if ((!step.ioType || step.ioType == ioType) && (!step.pressType || step.pressType == pressType) && (!step.val || step.val == val)) {
+    if (step && (!step.ioType || step.ioType == ioType) && (!step.pressType || step.pressType == pressType) && (!step.val || step.val == val)) {
         return true
     }
     return false;

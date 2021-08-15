@@ -127,7 +127,7 @@
                       _key+="_"+this.curPointer[k]
                   }
               }*/
-
+              
              var sckSetting = findSckSetting([...this.curKeyCodes], Object.keys(this.curPointer), this._scene, this._camera, this.targetDom);
 
              // console.log(sckSetting)

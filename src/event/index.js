@@ -14,7 +14,6 @@ var eventFactory = {
 }
 
 
-console.log(eventFactory.get("SceneTrans", {}))
 
 
 export {

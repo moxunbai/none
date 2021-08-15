@@ -15,6 +15,7 @@ var shortcutKeyDefine =[
  * 获取快捷键设置
  */
 function findSckSetting(keys,pointer,scene,camera,dom){
+	console.log(Array.prototype.slice.call(arguments))
 	for(let item of shortcutKeyDefine){
         let tempKeys = new Set([...keys,...item.shortcutKey.keys])
         let tempPointer = new Set([...pointer, item.shortcutKey.pointer])
