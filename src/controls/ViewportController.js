@@ -90,6 +90,7 @@
 
              if (that.actEvent) {
                  that.actEvent.close();
+                 that.actEvent=null;
              }
          })
 
@@ -119,15 +120,9 @@
              if (!hasPointer && !hasKeyDown) {
                  return;
              }
-             /* var _key= [...this.curKeyCodes].sort().join("_");
-               
-               
-              if(Object.keys(this.curPointer ).length>0){
-                  for(let k in this.curPointer){
-                      _key+="_"+this.curPointer[k]
-                  }
-              }*/
-              
+        
+
+              // console.log(ioType+"  "+ pressType+"  " +val)
              var sckSetting = findSckSetting([...this.curKeyCodes], Object.keys(this.curPointer), this._scene, this._camera, this.targetDom);
 
              // console.log(sckSetting)
@@ -135,9 +130,9 @@
                  // console.log("sckSetting", sckSetting)
                  this.actEvent = sckSetting[Symbol.for("event")];
                  if (this.actEvent) {
-                     console.log("checkEventLify sart")
+                     // console.log("checkEventLify sart")
                      this.actEvent.start([...this.curKeyCodes], this.curPointer, event);
-                     // this.actEvent.onIOChange(ioType, pressType, val, event)
+                     
                  }
              }
          }
