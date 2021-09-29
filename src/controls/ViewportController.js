@@ -28,16 +28,7 @@
                  that.checkEventLify(ioType, pressType, val, event)
              });
 
-         this.curPointer = new Proxy({}, {
-             set(target, key, val) {
-                 // console.log("set",val)
-                 return target[key] = val
-             },
-             deleteProperty(target, key) {
-                 // console.log("delete",key)
-                 return delete target[key];
-             }
-         });
+         this.curPointer = creatPointerCache();
          document.addEventListener("keydown", function(event) {
              // console.log("keydown222", event.code)
              let _keyval = getSimpleKey(event.code);
@@ -55,7 +46,10 @@
 
          })
 
-         dom.addEventListener('pointerdown', function() {
+         dom.addEventListener('pointerdown', function(event) {
+            // if (that.actEvent) {
+            //     return;
+            // }
              if (event.pointerType === 'touch') {
 
              } else {
@@ -69,7 +63,7 @@
 
          })
 
-         dom.addEventListener('pointerup', function() {
+         dom.addEventListener('pointerup', function(event) {
              let ptype = getPointerType(event.button);
              if (ptype) {
                  console.log("pointerup")
@@ -104,15 +98,25 @@
      }
 
      checkEventLify(ioType, pressType, val, event) {
+         console.log("checkEventLify",(this.actEvent != null && this.actEvent.isActive))
          if (this.actEvent != null && this.actEvent.isActive) {
+
              if (this.actEvent.curSteps > -1 && this.actEvent.curSteps < this.actEvent.steps.length) {
 
-                 this.actEvent.onIOChange(ioType, pressType, val, event)
+                 let evtResult = this.actEvent.onIOChange(ioType, pressType, val, event)
+                 if( evtResult&&evtResult.done ){
+                    console.log("结束" + pressType, val)
+                    this.curKeyCodes.clear();
+                    this.curPointer = creatPointerCache();
+                    
+                    this.actEvent = null;
+                 }
              } else {
-                 console.log("结束" + pressType, val)
-                 this.actEvent.close();
-                 this.actEvent = null;
-                 //结束
+                console.log("结束" + pressType, val)
+                this.curKeyCodes.clear();
+                this.curPointer = creatPointerCache();
+                
+                this.actEvent = null;
              }
          } else {
              var hasPointer = Object.keys(this.curPointer).length > 0;
@@ -122,7 +126,7 @@
              }
         
 
-              // console.log(ioType+"  "+ pressType+"  " +val)
+            //   console.log(ioType+"  "+ pressType+"  " +val)
              var sckSetting = findSckSetting([...this.curKeyCodes], Object.keys(this.curPointer), this._scene, this._camera, this.targetDom);
 
              // console.log(sckSetting)
@@ -199,6 +203,18 @@
      }
  }
 
+ const creatPointerCache =function(){
+     return new Proxy({}, {
+        set(target, key, val) {
+            // console.log("set",val)
+            return target[key] = val
+        },
+        deleteProperty(target, key) {
+            // console.log("delete",key)
+            return delete target[key];
+        }
+    });
+ }
 
 
 

@@ -73,7 +73,7 @@ class SceneTransEvent extends OperEvent {
 
                 // console.log("rotateCamera length:" + angle, moveDirection)
                 if (angle) {
-
+                    console.log("有 angle:"  )
                     that._eye.copy(that._camera.position).sub(that.target);
 
                     eyeDirection.copy(that._eye).normalize();
@@ -96,7 +96,7 @@ class SceneTransEvent extends OperEvent {
                     // return true
 
                 } else if (!that.staticMoving && that._lastAngle) {
-
+                    console.log("没 angle :"  )
                     that._lastAngle *= Math.sqrt(1.0 - that.dynamicDampingFactor);
 
                     that._eye.copy(that._camera.position).sub(that.target);
@@ -211,7 +211,7 @@ class SceneTransEvent extends OperEvent {
 
     update() {
 
-        
+        console.log("SceneTransEvent update")
 
         var that = this;
 
@@ -220,28 +220,28 @@ class SceneTransEvent extends OperEvent {
         that._camera.position.addVectors(that.target, that._eye);
 
         if (that._camera.isPerspectiveCamera) {
-
+            console.log("isPerspectiveCamera")
             // that.checkDistances();
             that._camera.lookAt(that.target);
  
-            if (that.lastPosition.distanceToSquared(that._camera.position) > EPS) {
+            // if (that.lastPosition.distanceToSquared(that._camera.position) > EPS) {
 
-                // that.dispatchEvent(_changeEvent);
-                that.lastPosition.copy(that._camera.position);
+            //     // that.dispatchEvent(_changeEvent);
+            //     that.lastPosition.copy(that._camera.position);
 
-            }
+            // }
 
         } else if (that._camera.isOrthographicCamera) {
 
             that._camera.lookAt(that.target);
 
-            if (that.lastPosition.distanceToSquared(that._camera.position) > EPS || lastZoom !== that._camera.zoom) {
+            // if (that.lastPosition.distanceToSquared(that._camera.position) > EPS || lastZoom !== that._camera.zoom) {
 
-                // that.dispatchEvent(_changeEvent);
-                lastPosition.copy(that._camera.position);
-                lastZoom = that._camera.zoom;
+            //     // that.dispatchEvent(_changeEvent);
+            //     lastPosition.copy(that._camera.position);
+            //     lastZoom = that._camera.zoom;
 
-            }
+            // }
 
         } else {
 
@@ -254,7 +254,7 @@ class SceneTransEvent extends OperEvent {
 
     close() {
         this.isActive = false;
-        this.curStep = 0;
+        this.curSteps = 0;
     }
 
 

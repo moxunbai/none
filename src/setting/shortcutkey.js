@@ -8,6 +8,14 @@ var shortcutKeyDefine =[
         	pointer:"left"
         },
         funcType:"",
+	},
+	{
+        [Symbol.for("eventName")]:"ScenePan",
+        shortcutKey:{
+			keys:['Ctrl'],
+        	pointer:"right"
+        },
+        funcType:"",
 	}
 ]
 
@@ -17,6 +25,7 @@ var shortcutKeyDefine =[
 function findSckSetting(keys,pointer,scene,camera,dom){
 	 
 	for(let item of shortcutKeyDefine){
+		// console.log(item.shortcutKey.keys)
         let tempKeys = new Set([...keys,...item.shortcutKey.keys])
         let tempPointer = new Set([...pointer, item.shortcutKey.pointer])
         // console.log("tempKeys",tempKeys)
