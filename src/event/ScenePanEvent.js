@@ -115,7 +115,7 @@ class ScenePanEvent extends OperEvent {
 
         if (pointers) {
 
-            var opts = Object.values(pointers);
+            var opts = [...pointers.values()];
             let params = opts && opts[0];
             let pointerEvt = params[3];
             this._panStart.copy( getMouseOnScreen( pointerEvt.pageX, pointerEvt.pageY, this.screen ) );
@@ -124,13 +124,13 @@ class ScenePanEvent extends OperEvent {
             
             
              
-            this.onIOChange.apply(this, params)
+            this.updateState.apply(this, params)
         }
     }
 
 
 
-    onIOChange(ioType, pressType, val, event) {
+    updateState(ioType, pressType, val, event) {
 
          
         let _step = this.steps[this.curSteps];
@@ -191,7 +191,7 @@ class ScenePanEvent extends OperEvent {
 
     close() {
         this.isActive = false;
-        this.curStep = 0;
+        this.curSteps = 0;
     }
 
 

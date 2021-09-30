@@ -10,7 +10,6 @@
 
      actEvent = null;
 
-     pointerCache = [];
      pointerUser = "hand";
      targetDom;
      _camera;
@@ -21,27 +20,22 @@
          this._camera = camera;
          this._scene = scene;
          var that = this;
-         this.curKeyCodes = new PriSet(( ioType, pressType, val, event) => {
-                 that.checkEventLify(ioType, pressType, val, event)
-             },
-             ( ioType, pressType, val, event) => {
-                 that.checkEventLify(ioType, pressType, val, event)
-             });
+         this.curKeyCodes = new Map();
 
-         this.curPointer = creatPointerCache();
+         this.curPointer = new Map();
          document.addEventListener("keydown", function(event) {
-             // console.log("keydown222", event.code)
+              
              let _keyval = getSimpleKey(event.code);
-             that.curKeyCodes.add(_keyval, [IO_TYPE.KEYBOARD, PRESS_TYPE.DOWN, _keyval, event])
-
-
+             that.curKeyCodes.set(_keyval, [IO_TYPE.KEYBOARD, PRESS_TYPE.DOWN, _keyval, event]);
+             that.checkEventLify(IO_TYPE.KEYBOARD, PRESS_TYPE.DOWN, _keyval, event)
 
          })
          document.addEventListener("keyup", function(event) {
 
              let _keyval = getSimpleKey(event.code);
-             that.curKeyCodes.delete(_keyval, [IO_TYPE.KEYBOARD, PRESS_TYPE.UP, _keyval, event])
-             // that.checkEventLify(IO_TYPE.KEYBOARD,  PRESS_TYPE.UP, _keyval, event)
+             that.curKeyCodes.delete(_keyval);
+            //  that.curKeyCodes.delete(_keyval, [IO_TYPE.KEYBOARD, PRESS_TYPE.UP, _keyval, event])
+             that.checkEventLify(IO_TYPE.KEYBOARD,  PRESS_TYPE.UP, _keyval, event)
              event.preventDefault()
 
          })
@@ -55,7 +49,7 @@
              } else {
                  let ptype = getPointerType(event.button);
                  if (ptype) {
-                     that.curPointer[ptype] = [IO_TYPE.MOUSE, PRESS_TYPE.DOWN, ptype, event];
+                     that.curPointer.set(ptype, [IO_TYPE.MOUSE, PRESS_TYPE.DOWN, ptype, event]);
                      that.checkEventLify(IO_TYPE.MOUSE, PRESS_TYPE.DOWN, ptype, event)
                  }
 
@@ -67,7 +61,7 @@
              let ptype = getPointerType(event.button);
              if (ptype) {
                  console.log("pointerup")
-                 delete that.curPointer[ptype];
+                 that.curPointer.delete(ptype);
 
                  that.checkEventLify(IO_TYPE.MOUSE, PRESS_TYPE.UP, ptype, event)
              }
@@ -85,6 +79,8 @@
              if (that.actEvent) {
                  that.actEvent.close();
                  that.actEvent=null;
+                 that.curKeyCodes.clear();
+                 that.curPointer.clear();
              }
          })
 
@@ -101,23 +97,33 @@
          console.log("checkEventLify",(this.actEvent != null && this.actEvent.isActive))
          if (this.actEvent != null && this.actEvent.isActive) {
 
-             if (this.actEvent.curSteps > -1 && this.actEvent.curSteps < this.actEvent.steps.length) {
-
-                 let evtResult = this.actEvent.onIOChange(ioType, pressType, val, event)
-                 if( evtResult&&evtResult.done ){
+            if(pressType==PRESS_TYPE.UP){
+                let evtResult = this.actEvent.updateState(ioType, pressType, val, event);
+                if( evtResult&&evtResult.done ){
                     console.log("结束" + pressType, val)
                     this.curKeyCodes.clear();
-                    this.curPointer = creatPointerCache();
+                    this.curPointer.clear();
                     
                     this.actEvent = null;
                  }
-             } else {
-                console.log("结束" + pressType, val)
-                this.curKeyCodes.clear();
-                this.curPointer = creatPointerCache();
+            }
+            //  if (this.actEvent.curSteps > -1 && this.actEvent.curSteps < this.actEvent.steps.length) {
+
+            //      let evtResult = this.actEvent.onIOChange(ioType, pressType, val, event)
+            //      if( evtResult&&evtResult.done ){
+            //         console.log("结束" + pressType, val)
+            //         this.curKeyCodes={};
+            //         this.curPointer = {};
+                    
+            //         this.actEvent = null;
+            //      }
+            //  } else {
+            //     console.log("结束" + pressType, val)
+            //     this.curKeyCodes.clear();
+            //     this.curPointer = creatPointerCache();
                 
-                this.actEvent = null;
-             }
+            //     this.actEvent = null;
+            //  }
          } else {
              var hasPointer = Object.keys(this.curPointer).length > 0;
              var hasKeyDown = this.curKeyCodes.size > 0;
@@ -125,9 +131,11 @@
                  return;
              }
         
-
+            
+             var kbKeys = [...this.curKeyCodes.keys()];
+             var pKeys = [...this.curPointer.keys()]
             //   console.log(ioType+"  "+ pressType+"  " +val)
-             var sckSetting = findSckSetting([...this.curKeyCodes], Object.keys(this.curPointer), this._scene, this._camera, this.targetDom);
+             var sckSetting = findSckSetting(kbKeys,pKeys, this._scene, this._camera, this.targetDom);
 
              // console.log(sckSetting)
              if (sckSetting) {
@@ -135,7 +143,7 @@
                  this.actEvent = sckSetting[Symbol.for("event")];
                  if (this.actEvent) {
                      // console.log("checkEventLify sart")
-                     this.actEvent.start([...this.curKeyCodes], this.curPointer, event);
+                     this.actEvent.start(kbKeys, this.curPointer, event);
                      
                  }
              }

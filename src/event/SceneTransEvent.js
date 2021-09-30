@@ -136,20 +136,20 @@ class SceneTransEvent extends OperEvent {
 
         if (pointers) {
 
-            var opts = Object.values(pointers);
+            var opts = [...pointers.values()];
             let params = opts && opts[0];
             let pointerEvt = params[3];
             this._moveCurr.copy(getMouseOnCircle(pointerEvt.pageX, pointerEvt.pageY, this.screen));
 
             this._movePrev.copy(this._moveCurr);
              
-            this.onIOChange.apply(this, params)
+            this.updateState.apply(this, params)
         }
     }
 
 
 
-    onIOChange(ioType, pressType, val, event) {
+    updateState(ioType, pressType, val, event) {
 
         // if(ioType==IO_TYPE.KEYBOARD){
         //     return
